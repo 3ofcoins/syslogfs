@@ -8,19 +8,11 @@ import "bazil.org/fuse/fs"
 
 const EEXIST = fuse.Errno(syscall.EEXIST)
 
-var Root = new(fs.Tree)
-
 type Dir struct {
+	*FS
 	Name string
 	files map[string]*File
 }
-
-func NewDir(name string) *Dir {
-	dir := &Dir{name, make(map[string]*File)}
-	Root.Add(name, dir)
-	return dir
-}
-
 
 func (dir *Dir) Attr() fuse.Attr {
 	return fuse.Attr{Mode: os.ModeDir}
@@ -47,7 +39,7 @@ func (dir *Dir) Create(req *fuse.CreateRequest, res *fuse.CreateResponse, intr f
 		return nil, nil, EEXIST
 	}
 	
-	file := NewFile(dir.Name, req.Name)
+	file := NewFile(dir, req.Name)
 	dir.files[req.Name] = file
 	return file, file.Handle(req.Header), nil
 }

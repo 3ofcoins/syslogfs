@@ -2,7 +2,6 @@ package main
 
 import "io"
 import "log"
-import "os"
 
 import "bazil.org/fuse"
 import "bazil.org/fuse/fs"
@@ -13,7 +12,7 @@ type Handle struct {
 }
 
 func NewHandle(file *File, prefix string) *Handle {
-	return &Handle{file, NewPrefixingWriter(os.Stderr, prefix)}
+	return &Handle{file, NewPrefixingWriter(file.Dir.FS.Writer, prefix)}
 }
 
 func (h *Handle) Write(req *fuse.WriteRequest, resp *fuse.WriteResponse, intr fs.Intr) fuse.Error {

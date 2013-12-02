@@ -1,44 +1,28 @@
 package main
 
-import "encoding/json"
-
 import "flag"
 import "fmt"
-import "io/ioutil"
 import "log"
 import "os"
+import "strings"
 
 import "bazil.org/fuse"
 import "bazil.org/fuse/fs"
-
-
-func loadConfig(path string) {
-	var config map[string]interface{}
-
-	cff, err := os.Open(path)
-	if err != nil {
-		log.Fatal("Cannot open config", path, ":", err)
-	}
-
-	cfb, err := ioutil.ReadAll(cff)
-	if err != nil {
-		log.Fatal("Cannot read config", path, ":", err)
-	}
-
-	json.Unmarshal(cfb, &config)
-	for dir, _ := range config {
-		NewDir(dir)
-	}
-}
 
 var usage = func () {
 	fmt.Fprintf(os.Stderr, "Usage: %s TEMPLATE.JSON MOUNTPOINT\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
+type logWriter struct{}
+func (logWriter) Write(data []byte) (int, error) {
+	log.Print(string(data))
+	return len(data), nil
+}
+
 func main() {
 	flag.Usage = usage
-	_ = flag.String("o", "", "mount options (ignored)")
+	raw_options := flag.String("o", "", "mount options (ignored)")
 	debug := flag.Bool("debug", false, "show debugging info")
 	flag.Parse()
 
@@ -47,7 +31,21 @@ func main() {
 		os.Exit(2)
 	}
 
-	loadConfig(flag.Arg(0))
+	options := make(map[string]string)
+	for _, opt := range strings.Split(*raw_options, ",") {
+		kv := strings.SplitN(opt, "=", 2)
+		if len(kv) == 1 {
+			options[kv[0]] = ""
+		} else {
+			options[kv[0]] = kv[1]
+		}
+	}
+	log.Println(options)
+
+	root := NewFS(logWriter{})
+	if err := root.LoadConfig(flag.Arg(0)) ; err != nil {
+		log.Fatal(err)
+	}
 
 	if *debug {
 		fuse.Debugf = log.Printf
@@ -56,6 +54,6 @@ func main() {
 	if c, err := fuse.Mount(flag.Arg(1)) ; err != nil {
 		log.Fatal(err)
 	} else {
-		fs.Serve(c, Root)
+		fs.Serve(c, root)
 	}
 }

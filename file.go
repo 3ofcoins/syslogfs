@@ -9,7 +9,7 @@ import "bazil.org/fuse/fs"
 const ENOTDIR = fuse.Errno(syscall.ENOTDIR)
 
 type File struct {
-	DirName string
+	*Dir
 	Name string
 	BytesWritten uint64
 	writtenByteChan chan int 
@@ -21,8 +21,8 @@ func (f *File) doUpdateBytes() {
 	}
 }
 
-func NewFile (dirname string, filename string) *File {
-	f := &File{dirname, filename, 0, make(chan int)}
+func NewFile (dir *Dir, filename string) *File {
+	f := &File{dir, filename, 0, make(chan int)}
 	go f.doUpdateBytes()
 	return f
 }
@@ -32,7 +32,7 @@ func (f *File) Written(bytes int) {
 }
 
 func (f *File) Handle(hdr fuse.Header) *Handle {
-	return NewHandle(f, fmt.Sprintf("%s[%d]: %s:", f.DirName, hdr.Pid, f.Name))
+	return NewHandle(f, fmt.Sprintf("%s[%d]: %s:", f.Dir.Name, hdr.Pid, f.Name))
 }
 
 func (f *File) Attr() fuse.Attr {
